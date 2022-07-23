@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row">
+
+  <div class="col-4">
+    {% if user.image_url  %}
+      <img style="max-width: inherit" src="{{user.image_url}}">
+    {% endif %}
+  </div>
+  <div class="col-8">
+    <h1>{{user.first_name}} {{user.last_name}}</h1>
+  </div>
+</div>
+<a href="/users/{{ user.id }}/edit"><button class="btn btn-primary">Edit</button></a>
+<form action="/users/{{ user.id }}/delete" method="post">
+  <button type="submit" class="btn btn-primary">Delete</button>
+</form>
+{% endblock %}
