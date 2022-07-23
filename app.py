@@ -2,6 +2,7 @@
 
 from flask import Flask, render_template, redirect, request
 from models import db, connect_db, User
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///blogly'
@@ -12,21 +13,9 @@ connect_db(app)
 db.drop_all()
 db.create_all()
 
-# sample populating
-# henry = User(first_name='Henry', last_name='Rollins', image_url="https://cdn11.bigcommerce.com/s-ydriczk/images/stencil/1280x1280/products/46523/46391/ss2158728_-_photograph_of_henry_rollins_available_in_4_sizes_framed_or_unframed_buy_now_at_starstills__54545__29662.1394484410.jpg?c=2?imbypass=on")
-# chuck = User(first_name='Chuck', last_name='Dukowski', image_url="https://cdn.gemtracks.com/img/artist/848.jpg")
-# dez = User(first_name='Dez', last_name='Cadena', image_url="https://images.equipboard.com/uploads/source/image/109891/dez-cadena-was-the-third-vocalist-and-later-rhythm-guitarist-for-hardcore-punk-band-black-flag-from-1980-to-1983-and-played-guitar-with-the-misfits-from-2001-to-2015.jpg")
-# greg = User(first_name='Greg', last_name='Ginn', image_url="https://lastfm.freetls.fastly.net/i/u/ar0/19a4700b78e5436e82c3eeb4ca0827a9.jpg")
-# robo = User(first_name='Robo', last_name='ROBO', image_url="https://64.media.tumblr.com/58e9139333949cd4fe2cdb9ad510e8ea/tumblr_ml5cdz1baz1s474z1o1_500.jpg")
+# seed sample documents
+from seed import *
 
-# db.session.add(henry)
-# db.session.add(chuck)
-# db.session.add(dez)
-# db.session.add(greg)
-# db.session.add(robo)
-
-# db.session.commit()
-# end sample populating
 
 
 @app.route('/', methods=['GET'])
@@ -124,8 +113,66 @@ def post_user_edit_form(userid):
 @app.route('/users/<userid>/delete', methods=['POST'])
 def delete_user(userid):
   """Delete the user"""
-  User.query.filter_by(id=userid).delete()
+  user = User.query.get(userid)
+  db.session.delete(user)
+
 
   db.session.commit()
 
   return redirect("/users")
+
+
+@app.route('/users/<int:userid>/posts/new', methods=['GET'])
+def get_blog_post_form(userid):
+  """Show form to add a post for that user."""
+
+  return render_template('new_blog_form.html', userid=userid)
+
+
+@app.route('/users/<int:userid>/posts/new', methods=['POST'])
+def take_blog_post_form(userid):
+  """Take blog post"""
+  post = Post(title=request.form['title'], content=request.form['content'],  author_id=userid)
+
+  db.session.add(post)
+  db.session.commit()
+
+  return redirect(f"/users/{userid}")
+
+
+@app.route('/posts/<int:postid>', methods=['GET'])
+def get_post(postid):
+  """Show blog post"""
+  post = Post.query.get(postid)
+
+  return render_template('display_post.html', post=post)
+
+
+@app.route('/posts/<int:postid>/edit', methods=['GET'])
+def get_edit_post(postid):
+  """get edit post form"""
+  post=Post.query.get(postid)
+  return render_template('edit_blog_form.html', post=post)
+
+
+@app.route('/posts/<int:postid>/edit', methods=['POST'])
+def post_edit_post(postid):
+  """accept post for post edit"""
+  post=Post.query.get(postid)
+  
+  post.title = request.form['title']
+  post.content = request.form['content']
+
+  db.session.commit()
+  return redirect(f"/users/{post.author_id}")
+
+
+@app.route('/posts/<int:postid>/delete', methods=['POST'])
+def delete_post(postid):
+  """Delete a post"""
+  post = Post.query.get(postid)
+  user_id = post.author_id
+  db.session.delete(post)
+  db.session.commit()
+  
+  return redirect(f"/users/{user_id}")

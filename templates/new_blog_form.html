@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+  <form id="new-post-form" action="/users/{{userid}}/posts/new" method="post">
+    <label>Title</label><input name="title">
+    <label>Content</label>
+    <textarea name="content" form="new-post-form"></textarea>
+    <a href="/users/{{ userid }}"><button class="btn btn-primary">Cancel</button></a>
+    <button class="btn btn-primary" type="submit">Save</button>
+  </form>
+{% endblock %}

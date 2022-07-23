@@ -2,6 +2,32 @@ from app import app
 from unittest import TestCase
 from models import db
 
+coming_down_lyrics = """Look into the stars
+Find every moment, moment on mars
+Fly above the earth
+Find every moment under the nine
+Hey you found your way
+You're coming down from outer space
+Hey you found your way
+You're coming down from outer space
+
+Ride the dark lit skies
+Find every moment as you fall to the light
+Rise above the world
+Find every moment you've left behind
+Hey you found your way
+You're coming down from outer space
+Hey you found your way
+You're coming down from outer space
+Look into the stars
+Find every moment, moment on mars
+Fly above the earth
+Find every moment under the nine
+Hey you found your way
+You're coming down from outer space
+Hey you found your way
+You're coming down from outer space"""
+
 class RouteTestCase(TestCase):
   """Tests"""
 
@@ -48,31 +74,37 @@ class RouteTestCase(TestCase):
 
       resp = client.get("/users")
 
-      self.assertEqual(resp.status_code, 200)
-      self.assertIn("Mr. Magoo", resp.get_data(as_text=True))
-
-      resp = client.get("/users/1")
+      CLIENT_ID = 6 # assuming after seed data in seed.py
 
       self.assertEqual(resp.status_code, 200)
       self.assertIn("Mr. Magoo", resp.get_data(as_text=True))
 
-      resp = client.get("/users/1/edit")
+      # get user page
+      resp = client.get(f"/users/{CLIENT_ID}")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn("Mr. Magoo", resp.get_data(as_text=True))
+
+      # get edit user page
+      resp = client.get(f"/users/{CLIENT_ID}/edit")
       self.assertEqual(resp.status_code, 200)
       self.assertIn('<label>First Name</label><input type="text" name="first-name" value="Mr.">', resp.get_data(as_text=True))
       self.assertIn('<label>Last Name</label><input type="text" name="last-name" value="Magoo">', resp.get_data(as_text=True))
 
-      resp = client.post("/users/1/edit", data={"first-name": "Bullwinkle", "last-name": "Moose", "image-url": ""})
+      # edit user
+      resp = client.post(f"/users/{CLIENT_ID}/edit", data={"first-name": "Bullwinkle", "last-name": "Moose", "image-url": ""})
 
       self.assertEqual(resp.status_code, 302)
       self.assertEqual(resp.location, "/users")
 
+      # confirm edited user in users
       resp = client.get("/users")
 
       self.assertEqual(resp.status_code, 200)
       self.assertIn("Bullwinkle Moose", resp.get_data(as_text=True))
 
       # delete
-      resp = client.post("/users/1/delete")
+      resp = client.post(f"/users/{CLIENT_ID}/delete")
 
       self.assertEqual(resp.status_code, 302)
       self.assertEqual(resp.location, "/users")
@@ -85,4 +117,82 @@ class RouteTestCase(TestCase):
       response_text = resp.get_data(as_text=True)
       response_text = response_text.replace("\n", "").replace(" ", "")
 
-      self.assertIn("<ul></ul>", response_text)
+      self.assertNotIn("Mr. Magoo", response_text)
+
+  def test_blog_cycle(self):
+    """Go through cycle of creating a post, editing it, deleting it"""
+    with app.test_client() as client:
+
+      # create user for making posts
+      resp = client.post("/users/new", data={"first-name": "Mr.", "last-name": "Magoo", "image-url": ""})
+
+      self.assertEqual(resp.status_code, 302)
+      self.assertEqual(resp.location, "/users")
+
+      resp = client.get("/users")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn("Mr. Magoo", resp.get_data(as_text=True))
+
+      CLIENT_ID = 6 ## assuming after running seed
+
+      # get post page
+      resp = client.get(f'/users/{CLIENT_ID}')
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn('<h1>Mr. Magoo</h1>', resp.get_data(as_text=True))
+
+      # get post form
+      resp = client.get(f"/users/{CLIENT_ID}/posts/new")
+
+      match_string = f"""<form id="new-post-form" action="/users/{CLIENT_ID}/posts/new" method="post">"""
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn(match_string, resp.get_data(as_text=True))
+
+      # create new post
+      resp = client.post(f"/users/{CLIENT_ID}/posts/new", data={"title":"Magoo Post", "content":"Hello my name is Mr. Magoo, no, no relation.", "author_id":CLIENT_ID})
+
+      self.assertEqual(resp.status_code, 302)
+      self.assertEqual(resp.location, f"/users/{CLIENT_ID}")
+      
+      POST_ID = 2 # assuming after seed
+
+
+      # get new post
+      resp = client.get(f"/posts/{POST_ID}")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn("Hello my name is Mr. Magoo, no, no relation.", resp.get_data(as_text=True))
+
+      # get edit post form
+      resp = client.get(f"/posts/{POST_ID}/edit")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn("Hello my name is Mr. Magoo, no, no relation.", resp.get_data(as_text=True))
+
+      # edit post
+      resp = client.post(f"/posts/{POST_ID}/edit", data={"title":"Coming Down From Outer Space", "content":coming_down_lyrics})
+
+      self.assertEqual(resp.status_code, 302)
+      self.assertEqual(resp.location, f"/users/{CLIENT_ID}")
+
+      # get edited post
+      resp = client.get(f"/posts/{POST_ID}")
+
+      self.assertEqual(resp.status_code, 200)
+
+      self.assertIn("<h1>Coming Down From Outer Space</h1>", resp.get_data(as_text=True))
+      self.assertIn("Rise above the world", resp.get_data(as_text=True))
+
+      # delete post
+      resp = client.post(f"/posts/{POST_ID}/delete")
+
+      self.assertEqual(resp.status_code, 302)
+      self.assertEqual(resp.location, f"/users/{CLIENT_ID}")
+
+      # ensure post is gone
+      resp = client.get(f"/users/{CLIENT_ID}")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertNotIn("Coming Down From Outer Space", resp.get_data(as_text=True))
