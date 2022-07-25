@@ -1,5 +1,4 @@
 """Models for Blogly."""
-# from turtle import title
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
@@ -48,4 +47,24 @@ class Post(db.Model):
   author_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
   author = db.relationship("User")
-  # author = db.relationship("User", backref=db.backref('posts', cascade="all,delete"))
+  tags = db.relationship("Tag", secondary="post_tags", backref="posts")
+  
+
+class Tag(db.Model):
+  """Tags for Posts (M:M)"""
+  __tablename__ = "tags"
+
+  id = db.Column(db.Integer, unique=True, primary_key=True)
+  name = db.Column(db.String, unique=True, nullable=False)
+  
+  
+
+
+class PostTag(db.Model):
+  """Mapping of Posts to Tags"""
+
+  __tablename__ = "post_tags"
+
+  post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), primary_key=True)
+
+  tag_id = db.Column(db.Integer, db.ForeignKey("tags.id"), primary_key=True)

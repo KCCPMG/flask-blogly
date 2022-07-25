@@ -156,7 +156,7 @@ class RouteTestCase(TestCase):
       self.assertEqual(resp.status_code, 302)
       self.assertEqual(resp.location, f"/users/{CLIENT_ID}")
       
-      POST_ID = 2 # assuming after seed
+      POST_ID = 9 # assuming after seed
 
 
       # get new post
@@ -196,3 +196,56 @@ class RouteTestCase(TestCase):
 
       self.assertEqual(resp.status_code, 200)
       self.assertNotIn("Coming Down From Outer Space", resp.get_data(as_text=True))
+
+
+  def test_tag_cycle(self):
+    with app.test_client() as client:
+      # get new tag form
+      resp = client.get("/tags/new")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn('<h1>New Tag', resp.get_data(as_text=True))
+
+      # post new tag
+      resp = client.post("/tags/new", data={"tag-name":"taggy mctagface"})
+
+      TAG_ID = 4 # assuming after seed
+
+      self.assertEqual(resp.status_code, 302)
+      self.assertEqual(resp.location, "/tags")
+
+      # get all tags, see that new tag is there
+      resp = client.get("/tags")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn('taggy mctagface', resp.get_data(as_text=True))
+
+      # get tag edit form
+      resp = client.get(f"/tags/{TAG_ID}/edit")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn('<button type="submit" class="btn btn-success">Save Tag Changes</button>', resp.get_data(as_text=True))
+
+      # post edited tag
+      resp = client.post(f"/tags/{TAG_ID}/edit", data={"tag-name":"junior mctagface"})
+
+      self.assertEqual(resp.status_code, 302)
+      self.assertEqual(resp.location, f"/tags/{TAG_ID}")
+
+      # get all tags, see that edited tag is there
+      resp = client.get("/tags")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn('junior mctagface', resp.get_data(as_text=True))
+
+      # delete tag
+      resp = client.post(f"/tags/{TAG_ID}/delete")
+
+      self.assertEqual(resp.status_code, 302)
+      self.assertEqual(resp.location, "/tags")
+
+      # get all tags, see that deleted tag is not there
+      resp = client.get("/tags")
+
+      self.assertEqual(resp.status_code, 200)
+      self.assertNotIn('tagface', resp.get_data(as_text=True))
